@@ -15,7 +15,7 @@ class PiecesTable(db.Model):
     player = db.Column(db.Integer)
 
 
-@app.route('/')
+@app.route('/game-state')
 def start():
     return get_converted_field(restore_field())
 
@@ -28,7 +28,7 @@ def roll():
     return result
 
 
-@app.route('/place_new_peace', methods=['POST'])
+@app.route('/place-new-peace', methods=['POST'])
 def place_new_peace():
     piece = PiecesTable(id=request.json['id'], pos=request.json['pos'], player=request.json['player'])
     db.session.add(piece)

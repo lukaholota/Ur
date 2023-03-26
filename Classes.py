@@ -10,11 +10,16 @@ class GamingField:
 
     def reserve_place(self, piece):
         if piece.pos < 5 or piece.pos > 12:
-            self.field[piece.old_pos][piece.player] = None
-            self.field[piece.pos][piece.player] = piece
+            if self.field[piece.pos][piece.player] is None:
+                self.field[piece.old_pos][piece.player] = None
+                self.field[piece.pos][piece.player] = piece
         else:
-            self.field[piece.old_pos] = None
-            self.field[piece.pos] = piece
+            if self.field[piece.pos] is None:
+                self.field[piece.old_pos] = None
+                self.field[piece.pos] = piece
+
+    def is_move_valid(self):
+        pass
 
 
 class Player:
@@ -30,8 +35,10 @@ class Player:
         new_piece.pos = pos
         self.field.reserve_place(new_piece)
 
-    def move_piece(self):
-        pass
+    def move_piece(self, piece, roll):
+        piece.old_pos = piece.pos
+        piece.pos += roll
+        self.field.reserve_place(piece)
 
 
 class Piece:
