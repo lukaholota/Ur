@@ -71,7 +71,7 @@ class Player:
     def place_new_piece(self, pos):
         pieces_amount = len(self.active_pieces)
         left = 7 - self.win - pieces_amount
-        if left < 0:
+        if left > 0:
             new_piece = Piece(self)
             self.active_pieces.append(new_piece)
             new_piece.old_pos = 0
