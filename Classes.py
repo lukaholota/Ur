@@ -21,11 +21,12 @@ class GamingField:
 
         elif piece.pos < 5 or piece.pos > 12 and piece.old_pos > 12:
             if self.is_reserve_valid(piece):
-                self.field[piece.old_pos][piece.player] = None
+                if piece.old_pos != 0:
+                    self.field[piece.old_pos][piece.player] = None
                 self.field[piece.pos][piece.player] = piece
                 return True
             else:
-                piece.pos = piece.old_pos
+                # piece.pos = piece.old_pos
                 return False
 
         elif piece.pos > 12 > piece.old_pos:
@@ -34,6 +35,16 @@ class GamingField:
                     self.field[piece.old_pos] = None
                 self.field[piece.pos][piece.player] = piece
                 return True
+            return False
+        elif piece.pos > 4 and piece.old_pos < 5:
+            if self.is_reserve_valid(piece):
+                if piece.old_pos != 0:
+                    self.field[piece.old_pos][piece.player] = None
+                self.field[piece.pos] = piece
+                return True
+            else:
+                # piece.pos = piece.old_pos
+                return False
         else:
             if self.is_reserve_valid(piece):
                 if piece.old_pos != 0:
@@ -41,7 +52,7 @@ class GamingField:
                 self.field[piece.pos] = piece
                 return True
             else:
-                piece.pos = piece.old_pos
+                # piece.pos = piece.old_pos
                 return False
 
     def is_reserve_valid(self, piece):
@@ -73,10 +84,10 @@ class Player:
         left = 7 - self.win - pieces_amount
         if left > 0:
             new_piece = Piece(self)
-            self.active_pieces.append(new_piece)
-            new_piece.old_pos = 0
             new_piece.pos = pos
             is_placed = self.field.reserve_place(new_piece)
+            if is_placed:
+                self.active_pieces.append(new_piece)
             return is_placed
         return 'too'
 
@@ -92,3 +103,4 @@ class Piece:
         self.id = len(player.active_pieces) + 1
         self.pos = 0
         self.player = player.num
+        self.old_pos = 0

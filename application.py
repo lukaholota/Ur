@@ -23,6 +23,77 @@ class GameState(db.Model):
     win_1 = db.Column(db.Integer)
 
 
+# restores field from database
+def restore_field():
+    state = GameState.query.all()[0]
+    current_roll, current_turn = state.roll, state.turn
+    win_0, win_1 = state.win_0, state.win_1
+    field = GamingField(roll=current_roll, turn=current_turn, win_0=win_0, win_1=win_1)
+    pieces = PiecesTable.query.all()
+    for piece in pieces:
+        field.players[piece.player].place_new_piece(piece.pos)
+    return field
+
+
+# saves field to database
+def save_field(field):
+    PiecesTable.query.delete()
+    db.session.commit()
+    players = (field.player_0, field.player_1)
+    for player in players:
+        for piece in player.active_pieces:
+            piece_object = PiecesTable(piece_id=piece.id, player=piece.player, pos=piece.pos)
+            db.session.add(piece_object)
+    db.session.commit()
+
+
+def start_next_turn():
+    state = GameState.query.all()[0]
+    current_roll, current_turn = state.roll, state.turn
+    win_0, win_1 = state.win_0, state.win_1
+    next_turn = (current_turn + 1) % 2
+    next_roll = roll()
+    GameState.query.delete()
+    state = GameState(turn=next_turn, roll=next_roll, win_0=win_0, win_1=win_1)
+    db.session.add(state)
+    db.session.commit()
+    if next_roll == 0 or not check_turn_possibility(restore_field()):
+        go_to_skip_page()
+        start_next_turn()
+
+
+def check_turn_possibility(field):
+    player = field.current_player
+    pieces = player.active_pieces
+    possible = []
+    for piece in pieces:
+        move = player.move_piece(piece)
+        if move == 'win':
+            move = True
+        if move == 'too':
+            move = False
+        possible.append(move)
+    place = player.place_new_piece(player.roll)
+    possible.append(place)
+    return any(possible)
+
+
+def add_win_piece():
+    state = GameState.query.all()[0]
+    current_roll, current_turn = state.roll, state.turn
+    win_0, win_1 = state.win_0, state.win_1
+    if current_turn == 0:
+        win_0 += 1
+    else:
+        win_1 += 1
+    GameState.query.delete()
+    state = GameState(turn=current_turn, roll=current_roll, win_0=win_0, win_1=win_1)
+    db.session.add(state)
+    db.session.commit()
+    if any([win == 7 for win in (win_0, win_1)]):
+        go_to_win_page()
+
+
 # returns field dictionary with piece objects as a value
 def get_converted_field(field):
     result = {}
@@ -42,42 +113,12 @@ def get_converted_field(field):
     return result
 
 
-# restores field from database
-def restore_field():
-    state = GameState.query.all()[0]
-    current_roll, current_turn = state.roll, state.turn
-    win_0, win_1 = state.win_0, state.win_1
-    field = GamingField(roll=current_roll, turn=current_turn, win_0=win_0, win_1=win_1)
-    pieces = PiecesTable.query.all()
-    for piece in pieces:
-        field.players[piece.player].place_new_piece(piece.pos)
-    return field
+def go_to_win_page():
+    return redirect(url_for('congrat_for_winning'))
 
 
-def start_next_turn():
-    state = GameState.query.all()[0]
-    current_roll, current_turn = state.roll, state.turn
-    win_0, win_1 = state.win_0, state.win_1
-    next_turn = (current_turn + 1) % 2
-    next_roll = roll()
-    GameState.query.delete()
-    state = GameState(turn=next_turn, roll=next_roll, win_0=win_0, win_1=win_1)
-    db.session.add(state)
-    db.session.commit()
-    if next_roll == 0 or not check_turn_possibility(restore_field()):
-        start_next_turn()
-
-
-# saves field to database
-def save_field(field):
-    PiecesTable.query.delete()
-    db.session.commit()
-    players = (field.player_0, field.player_1)
-    for player in players:
-        for piece in player.active_pieces:
-            piece_object = PiecesTable(piece_id=piece.id, player=piece.player, pos=piece.pos)
-            db.session.add(piece_object)
-    db.session.commit()
+def go_to_skip_page():
+    return redirect((url_for('skip_turn')))
 
 
 def convert_pieces_list_to_dict(player):
@@ -86,42 +127,6 @@ def convert_pieces_list_to_dict(player):
     for piece in pieces:
         converted[piece.id] = piece
     return converted
-
-
-def add_win_piece():
-    state = GameState.query.all()[0]
-    current_roll, current_turn = state.roll, state.turn
-    win_0, win_1 = state.win_0, state.win_1
-    if current_turn == 0:
-        win_0 += 1
-    else:
-        win_1 += 1
-    GameState.query.delete()
-    state = GameState(turn=current_turn, roll=current_roll, win_0=win_0, win_1=win_1)
-    db.session.add(state)
-    db.session.commit()
-    if any([win == 7 for win in (win_0, win_1)]):
-        go_to_win_page()
-
-
-def check_turn_possibility(field):
-    player = field.current_player
-    pieces = player.active_pieces
-    possible = []
-    for piece in pieces:
-        move = player.move_piece(piece)
-        if move == 'win':
-            move = True
-        if move == 'too':
-            move = False
-        possible.append(move)
-    place = player.place_new_piece(player.roll)
-    possible.append(place)
-    return any(possible)
-
-
-def go_to_win_page():
-    return redirect(url_for('congrat_for_winning'))
 
 
 def roll():
@@ -227,6 +232,11 @@ def get_left_pieces():
 def get_current_turn():
     state = GameState.query.all()[0]
     return state.turn
+
+
+@app.route('/skip-turn')
+def skip_turn():
+    return 'sorry. With your roll you can do nothing during this turn.'
 
 
 if __name__ == "__main__":
