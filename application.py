@@ -31,7 +31,7 @@ def restore_field():
     field = GamingField(roll=current_roll, turn=current_turn, win_0=win_0, win_1=win_1)
     pieces = PiecesTable.query.all()
     for piece in pieces:
-        field.players[piece.player].place_new_piece(piece.pos)
+        field.players[piece.player].restore_piece(piece.pos)
     return field
 
 
@@ -44,6 +44,13 @@ def save_field(field):
         for piece in player.active_pieces:
             piece_object = PiecesTable(piece_id=piece.id, player=piece.player, pos=piece.pos)
             db.session.add(piece_object)
+    state = GameState.query.all()[0]
+    current_roll, current_turn = state.roll, state.turn
+    win_0, win_1 = state.win_0, state.win_1
+    turn = field.turn
+    GameState.query.delete()
+    state = GameState(turn=turn, roll=current_roll, win_0=win_0, win_1=win_1)
+    db.session.add(state)
     db.session.commit()
 
 
@@ -96,6 +103,7 @@ def add_win_piece():
 
 # returns field dictionary with piece objects as a value
 def get_converted_field(field):
+    # 'current turn': str(field.turn + 1)
     result = {}
     for key, val in field.field.items():
         if isinstance(val, Piece):
@@ -145,7 +153,7 @@ def return_game_state_dict():
 def get_roll():
     state = GameState.query.all()[0]
     current_roll = state.roll
-    return current_roll
+    return str(current_roll)
 
 
 @app.route('/place-new-piece', methods=['POST'])
@@ -153,13 +161,13 @@ def place_new_piece():
     field = restore_field()
     player = field.current_player
     pos = player.roll
+    player_id = field.turn
     is_placed = player.place_new_piece(pos)
     if is_placed == 'too':
         return "You can't place anymore"
     elif is_placed:
         added_piece = player.active_pieces[-1]
         piece_id = added_piece.id
-        player_id = field.turn
         piece = PiecesTable(piece_id=piece_id, pos=pos, player=player_id)
         db.session.add(piece)
         db.session.commit()
@@ -177,13 +185,14 @@ def move_piece():
     player = field.current_player
     piece_id = request.json['piece_id']
     piece = convert_pieces_list_to_dict(player)[piece_id]
+    turn = field.turn
     is_moved = player.move_piece(piece)
     if is_moved == 'win':
         add_win_piece()
         save_field(field)
         start_next_turn()
         state = GameState.query.all()[0]
-        win = (state.win_0, state.win_1)[field.turn]
+        win = (state.win_0, state.win_1)[turn]
         return f'moved to win position. You still got {7 - win} pieces left to win'
     elif is_moved:
         save_field(field)
@@ -196,7 +205,7 @@ def move_piece():
 @app.route('/win')
 def congrat_for_winning():
     field = restore_field()
-    return f'player {field.turn + 1} won!'
+    return f'player {(field.turn + 1) % 2} won!'
 
 
 @app.route('/start-game')
@@ -231,7 +240,7 @@ def get_left_pieces():
 @app.route('/current-turn')
 def get_current_turn():
     state = GameState.query.all()[0]
-    return state.turn
+    return str(state.turn)
 
 
 @app.route('/skip-turn')

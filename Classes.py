@@ -12,58 +12,65 @@ class GamingField:
         for i in range(13, 15):
             self.field[i] = [None, None]
 
-    def reserve_place(self, piece):
-        if piece.pos > 14:
+    def restore_piece(self, piece):
+        if piece.pos < 5 or piece.pos > 12:
+            self.field[piece.pos][piece.player] = piece
+        else:
+            self.field[piece.pos] = piece
+
+    def place_piece(self, piece):
+        if self.field[piece.pos][piece.player] is None:
+            self.field[piece.pos][piece.player] = piece
+            if piece.pos == 4:
+                self.turn += 1
+            return True
+        return False
+
+    def move_piece(self, piece):
+        if not self.is_move_valid:
+            return False
+
+        elif piece.pos > 14:
             piece_index = self.current_player.active_pieces.index(piece)
             del self.current_player.active_pieces[piece_index]
             self.minor_all_other_pieces()
             return 'win'
 
         elif piece.pos < 5 or piece.pos > 12 and piece.old_pos > 12:
-            if self.is_reserve_valid(piece):
-                if piece.old_pos != 0:
-                    self.field[piece.old_pos][piece.player] = None
-                self.field[piece.pos][piece.player] = piece
-                return True
-            else:
-                # piece.pos = piece.old_pos
-                return False
+            self.field[piece.old_pos][piece.player] = None
+            self.field[piece.pos][piece.player] = piece
+            if piece.pos in (4, 14):
+                self.turn = (self.turn + 1) % 2
 
         elif piece.pos > 12 > piece.old_pos:
-            if self.is_reserve_valid(piece):
-                if piece.old_pos != 0:
-                    self.field[piece.old_pos] = None
-                self.field[piece.pos][piece.player] = piece
-                return True
-            return False
-        elif piece.pos > 4 and piece.old_pos < 5:
-            if self.is_reserve_valid(piece):
-                if piece.old_pos != 0:
-                    self.field[piece.old_pos][piece.player] = None
-                self.field[piece.pos] = piece
-                return True
-            else:
-                # piece.pos = piece.old_pos
-                return False
-        else:
-            if self.is_reserve_valid(piece):
-                if piece.old_pos != 0:
-                    self.field[piece.old_pos] = None
-                self.field[piece.pos] = piece
-                return True
-            else:
-                # piece.pos = piece.old_pos
-                return False
+            self.field[piece.old_pos] = None
+            self.field[piece.pos][piece.player] = piece
 
-    def is_reserve_valid(self, piece):
+        elif piece.pos > 4 and piece.old_pos < 5:
+            self.field[piece.old_pos][piece.player] = None
+            self.field[piece.pos] = piece
+
+        else:
+            self.field[piece.old_pos] = None
+            self.field[piece.pos] = piece
+        return True
+
+    def is_move_valid(self, piece):
         if piece.pos < 5 or piece.pos > 12:
             if self.field[piece.pos][piece.player] is None:
                 return True
-            return False
         else:
             if self.field[piece.pos] is None:
                 return True
-            return False
+            elif self.field[piece.pos].player != piece.player:
+                if piece.pos == 8 and self.field[piece.pos] is not None:
+                    piece.pos += 1
+                    self.is_move_valid(piece)
+                else:
+                    replaced_piece_index = self.current_player.active_pieces.index(self.field[piece.pos])
+                    del self.current_player.active_pieces[replaced_piece_index]
+                    return True
+        return False
 
     def minor_all_other_pieces(self):
         player = self.current_player
@@ -83,24 +90,28 @@ class Player:
         pieces_amount = len(self.active_pieces)
         left = 7 - self.win - pieces_amount
         if left > 0:
-            new_piece = Piece(self)
-            new_piece.pos = pos
-            is_placed = self.field.reserve_place(new_piece)
+            new_piece = Piece(self, pos)
+            is_placed = self.field.place_piece(new_piece)
             if is_placed:
                 self.active_pieces.append(new_piece)
             return is_placed
         return 'too'
 
+    def restore_piece(self, pos):
+        piece = Piece(self, pos)
+        self.field.restore_piece(piece)
+        self.active_pieces.append(piece)
+
     def move_piece(self, piece):
         piece.old_pos = piece.pos
         piece.pos += self.roll
-        is_moved = self.field.reserve_place(piece)
+        is_moved = self.field.move_piece(piece)
         return is_moved
 
 
 class Piece:
-    def __init__(self, player):
+    def __init__(self, player, pos):
         self.id = len(player.active_pieces) + 1
-        self.pos = 0
+        self.pos = pos
         self.player = player.num
         self.old_pos = 0
