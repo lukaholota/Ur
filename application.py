@@ -182,7 +182,7 @@ def place_new_piece():
 @app.route('/move-piece', methods=['PUT'])
 def move_piece():
     field = restore_field()
-    player = field.current_player
+    player = field.players[field.turn]
     piece_id = request.json['piece_id']
     piece = convert_pieces_list_to_dict(player)[piece_id]
     turn = field.turn

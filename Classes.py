@@ -22,7 +22,7 @@ class GamingField:
         if self.field[piece.pos][piece.player] is None:
             self.field[piece.pos][piece.player] = piece
             if piece.pos == 4:
-                self.turn += 1
+                self.turn = (self.turn + 1) % 2
             return True
         return False
 
