@@ -27,20 +27,20 @@ class GamingField:
         return False
 
     def move_piece(self, piece):
+        if piece.pos in (4, 8, 14):
+            self.turn = (self.turn + 1) % 2
+
         if not self.is_move_valid:
             return False
 
         elif piece.pos > 14:
             piece_index = self.current_player.active_pieces.index(piece)
             del self.current_player.active_pieces[piece_index]
-            self.minor_all_other_pieces()
             return 'win'
 
         elif piece.pos < 5 or piece.pos > 12 and piece.old_pos > 12:
             self.field[piece.old_pos][piece.player] = None
             self.field[piece.pos][piece.player] = piece
-            if piece.pos in (4, 14):
-                self.turn = (self.turn + 1) % 2
 
         elif piece.pos > 12 > piece.old_pos:
             self.field[piece.old_pos] = None
@@ -71,11 +71,6 @@ class GamingField:
                     del self.current_player.active_pieces[replaced_piece_index]
                     return True
         return False
-
-    def minor_all_other_pieces(self):
-        player = self.current_player
-        for piece in player.active_pieces:
-            piece.id -= 1
 
 
 class Player:

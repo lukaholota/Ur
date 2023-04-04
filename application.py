@@ -103,7 +103,6 @@ def add_win_piece():
 
 # returns field dictionary with piece objects as a value
 def get_converted_field(field):
-    # 'current turn': str(field.turn + 1)
     result = {}
     for key, val in field.field.items():
         if isinstance(val, Piece):
@@ -149,6 +148,13 @@ def return_game_state_dict():
     return get_converted_field(restore_field())
 
 
+@app.route('/game-state/v2')
+def return_game_state_dict_v2():
+    field = restore_field()
+    return {'current turn': str(field.turn + 1),
+            'field': get_converted_field(field)}
+
+
 @app.route('/roll', methods=['POST'])
 def get_roll():
     state = GameState.query.all()[0]
@@ -183,6 +189,9 @@ def place_new_piece():
 def move_piece():
     field = restore_field()
     player = field.players[field.turn]
+    player_id = request.json['player']
+    if player_id != field.turn:
+        return 'wrong player'
     piece_id = request.json['piece_id']
     piece = convert_pieces_list_to_dict(player)[piece_id]
     turn = field.turn
