@@ -65,7 +65,7 @@ class GamingField:
             elif self.field[piece.pos].player != piece.player:
                 if piece.pos == 8 and self.field[piece.pos] is not None:
                     piece.pos += 1
-                    self.is_move_valid(piece)
+                    return self.is_move_valid(piece)
                 else:
                     replaced_piece_index = self.current_player.active_pieces.index(self.field[piece.pos])
                     del self.players[(self.turn + 1) % 2].active_pieces[replaced_piece_index]
