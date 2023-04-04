@@ -151,7 +151,7 @@ def return_game_state_dict():
 @app.route('/game-state/v2')
 def return_game_state_dict_v2():
     field = restore_field()
-    return {'current turn': str(field.turn + 1),
+    return {'current_turn': str(field.turn + 1),
             'field': get_converted_field(field)}
 
 
@@ -190,7 +190,7 @@ def move_piece():
     field = restore_field()
     player = field.players[field.turn]
     player_id = request.json['player']
-    if player_id != field.turn:
+    if int(player_id) != field.turn:
         return 'wrong player'
     piece_id = request.json['piece_id']
     piece = convert_pieces_list_to_dict(player)[piece_id]
