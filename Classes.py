@@ -68,7 +68,7 @@ class GamingField:
                     self.is_move_valid(piece)
                 else:
                     replaced_piece_index = self.current_player.active_pieces.index(self.field[piece.pos])
-                    del self.current_player.active_pieces[replaced_piece_index]
+                    del self.players[(self.turn + 1) % 2].active_pieces[replaced_piece_index]
                     return True
         return False
 

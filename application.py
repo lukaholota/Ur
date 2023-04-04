@@ -151,7 +151,7 @@ def return_game_state_dict():
 @app.route('/game-state/v2')
 def return_game_state_dict_v2():
     field = restore_field()
-    return {'current_turn': str(field.turn + 1),
+    return {'current_turn': str(field.turn),
             'field': get_converted_field(field)}
 
 
@@ -225,6 +225,8 @@ def start_game():
     db.session.add(null_state)
     PiecesTable.query.delete()
     db.session.commit()
+    if start_roll == 0:
+        start_next_turn()
     return 'game status annulled, go to /game-state'
 
 
