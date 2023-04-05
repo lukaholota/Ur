@@ -30,7 +30,7 @@ class GamingField:
         if piece.pos in (4, 8, 14):
             self.turn = (self.turn + 1) % 2
 
-        if not self.is_move_valid:
+        if not self.is_move_valid(piece):
             return False
 
         elif piece.pos > 14:
