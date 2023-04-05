@@ -1,5 +1,5 @@
 from random import randrange
-from flask import Flask, request, redirect, url_for
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from Classes import *
 
@@ -64,9 +64,6 @@ def start_next_turn():
     state = GameState(turn=next_turn, roll=next_roll, win_0=win_0, win_1=win_1)
     db.session.add(state)
     db.session.commit()
-    if next_roll == 0 or not check_turn_possibility(restore_field()):
-        go_to_skip_page()
-        start_next_turn()
 
 
 def check_turn_possibility(field):
@@ -97,8 +94,6 @@ def add_win_piece():
     state = GameState(turn=current_turn, roll=current_roll, win_0=win_0, win_1=win_1)
     db.session.add(state)
     db.session.commit()
-    if any([win == 7 for win in (win_0, win_1)]):
-        go_to_win_page()
 
 
 # returns field dictionary with piece objects as a value
@@ -118,14 +113,6 @@ def get_converted_field(field):
         else:
             result[key] = val
     return result
-
-
-def go_to_win_page():
-    return redirect(url_for('congrat_for_winning'))
-
-
-def go_to_skip_page():
-    return redirect((url_for('skip_turn')))
 
 
 def convert_pieces_list_to_dict(player):
@@ -150,15 +137,32 @@ def return_game_state_dict():
 
 @app.route('/game-state/v2')
 def return_game_state_dict_v2():
+    state = GameState.query.all()[0]
+    win_0, win_1 = state.win_0, state.win_1
     field = restore_field()
     return {'current_turn': str(field.turn),
+            'finished_pieces_player_0': str(win_0),
+            'finished_pieces_player_1': str(win_1),
             'field': get_converted_field(field)}
+
+
+@app.route('/roll/v2', methods=['POST'])
+def get_roll():
+    state = GameState.query.all()[0]
+    current_roll = state.roll
+    if current_roll == 0:
+        start_next_turn()
+        return {'roll': str(current_roll), 'problem': "roll is zero! You skip the turn"}
+    return {'roll': str(current_roll)}
 
 
 @app.route('/roll', methods=['POST'])
 def get_roll():
     state = GameState.query.all()[0]
     current_roll = state.roll
+    if current_roll == 0:
+        start_next_turn()
+        return str(current_roll) + "roll is zero! You skip the turn"
     return str(current_roll)
 
 
@@ -209,12 +213,6 @@ def move_piece():
         return 'moved. go to /game-state'
     else:
         return 'not moved. Try to move another one or place a new one'
-
-
-@app.route('/win')
-def congrat_for_winning():
-    field = restore_field()
-    return f'player {(field.turn + 1) % 2} won!'
 
 
 @app.route('/start-game')
