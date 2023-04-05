@@ -27,9 +27,6 @@ class GamingField:
         return False
 
     def move_piece(self, piece):
-        if piece.pos in (4, 8, 14):
-            self.turn = (self.turn + 1) % 2
-
         if not self.is_move_valid(piece):
             return False
 
@@ -54,6 +51,9 @@ class GamingField:
         else:
             self.field[piece.old_pos] = None
             self.field[piece.pos] = piece
+
+        if piece.pos in (4, 8, 14):
+            self.turn = (self.turn + 1) % 2
         return True
 
     def is_move_valid(self, piece):
