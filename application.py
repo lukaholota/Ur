@@ -147,7 +147,7 @@ def return_game_state_dict_v2():
 
 
 @app.route('/roll/v2', methods=['POST'])
-def get_roll():
+def get_roll_v2():
     state = GameState.query.all()[0]
     current_roll = state.roll
     if current_roll == 0:
