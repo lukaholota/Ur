@@ -27,11 +27,14 @@ class GamingField:
         return False
 
     def move_piece(self, piece):
-        if piece.pos > 14:
+        if piece.pos == 15:
             piece_index = self.current_player.active_pieces.index(piece)
             del self.current_player.active_pieces[piece_index]
             self.minor_all_other_pieces(self.current_player)
             return 'win'
+
+        elif piece.pos > 15:
+            return False
 
         elif not self.is_move_valid(piece):
             return False

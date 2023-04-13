@@ -1,5 +1,7 @@
-from random import randrange
-from flask import Flask, request
+from random import randrange, choice
+from string import ascii_letters, digits, punctuation
+
+from flask import Flask, request, make_response
 from flask_sqlalchemy import SQLAlchemy
 from Classes import *
 
@@ -21,6 +23,8 @@ class GameState(db.Model):
     roll = db.Column(db.Integer)
     win_0 = db.Column(db.Integer)
     win_1 = db.Column(db.Integer)
+    player_id_0 = db.Column(db.String)
+    player_id_1 = db.Column(db.String)
 
 
 # restores field from database
@@ -44,55 +48,27 @@ def save_field(field):
         for piece in player.active_pieces:
             piece_object = PiecesTable(piece_id=piece.id, player=piece.player, pos=piece.pos)
             db.session.add(piece_object)
-    state = GameState.query.all()[0]
-    current_roll, current_turn = state.roll, state.turn
-    win_0, win_1 = state.win_0, state.win_1
-    turn = field.turn
-    GameState.query.delete()
-    state = GameState(turn=turn, roll=current_roll, win_0=win_0, win_1=win_1)
-    db.session.add(state)
+    state = GameState.query.first()
+    state.turn = field.turn
     db.session.commit()
 
 
 def start_next_turn():
-    state = GameState.query.all()[0]
+    state = GameState.query.first()
     current_roll, current_turn = state.roll, state.turn
-    win_0, win_1 = state.win_0, state.win_1
     next_turn = (current_turn + 1) % 2
     next_roll = roll()
-    GameState.query.delete()
-    state = GameState(turn=next_turn, roll=next_roll, win_0=win_0, win_1=win_1)
-    db.session.add(state)
+    state.roll = next_roll
+    state.turn = next_turn
     db.session.commit()
-
-
-def check_turn_possibility(field):
-    player = field.current_player
-    pieces = player.active_pieces
-    possible = []
-    for piece in pieces:
-        move = player.move_piece(piece)
-        if move == 'win':
-            move = True
-        if move == 'too':
-            move = False
-        possible.append(move)
-    place = player.place_new_piece(player.roll)
-    possible.append(place)
-    return any(possible)
 
 
 def add_win_piece():
     state = GameState.query.all()[0]
-    current_roll, current_turn = state.roll, state.turn
-    win_0, win_1 = state.win_0, state.win_1
-    if current_turn == 0:
-        win_0 += 1
+    if state.turn == 0:
+        state.win_0 += 1
     else:
-        win_1 += 1
-    GameState.query.delete()
-    state = GameState(turn=current_turn, roll=current_roll, win_0=win_0, win_1=win_1)
-    db.session.add(state)
+        state.win_1 += 1
     db.session.commit()
 
 
@@ -121,6 +97,32 @@ def convert_pieces_list_to_dict(player):
     for piece in pieces:
         converted[piece.id] = piece
     return converted
+
+
+def check_player_valid(turn, req):
+    state = GameState.query.first()
+    identifier = req.cookies.get('id')
+    if identifier:
+        current_player_id = (state.player_id_0, state.player_id_1)[turn]
+        if current_player_id == identifier:
+            return True
+        return False
+    else:
+        new_id = generate_password()
+        if turn == 0:
+            state.player_id_0 = new_id
+        else:
+            state.player_id_1 = new_id
+        db.session.commit()
+        response = make_response('Player identifier set in cookie.')
+        response.set_cookie('id', new_id)
+        return response
+
+
+def generate_password(length=15):
+    chars = ascii_letters + digits + punctuation
+    password = ''.join(choice(chars) for _ in range(length))
+    return password
 
 
 def roll():
@@ -169,12 +171,20 @@ def get_roll():
 @app.route('/place-new-piece', methods=['POST'])
 def place_new_piece():
     field = restore_field()
+    res = check_player_valid(field.turn, request)
+    response = make_response()
+    if isinstance(res, bool):
+        if not res:
+            return "dont cheat"
+    else:
+        response = res
     player = field.current_player
     pos = player.roll
     player_id = field.turn
     is_placed = player.place_new_piece(pos)
     if is_placed == 'too':
-        return "You can't place anymore"
+        response.data = "You can't place anymore"
+        return response
     elif is_placed:
         added_piece = player.active_pieces[-1]
         piece_id = added_piece.id
@@ -183,15 +193,25 @@ def place_new_piece():
         db.session.commit()
         save_field(field)
         start_next_turn()
-        return 'placed, go to /game-state'
+        response.data = 'placed, go to /game-state'
+        return response
     else:
-        return "not placed. The field you tried to put the piece onto is occupied. You can't place during this turn"
+        response.data = "not placed. The field you tried to put " \
+                        "the piece onto is occupied. You can't place during this turn"
+        return response
 
 
 # roll and turn system
 @app.route('/move-piece', methods=['PUT'])
 def move_piece():
     field = restore_field()
+    res = check_player_valid(field.turn, request)
+    response = make_response()
+    if isinstance(res, bool):
+        if not res:
+            return "dont cheat"
+    else:
+        response = res
     player = field.players[field.turn]
     player_id = request.json['player']
     if int(player_id) != field.turn:
@@ -206,25 +226,26 @@ def move_piece():
         start_next_turn()
         state = GameState.query.all()[0]
         win = (state.win_0, state.win_1)[turn]
-        return f'moved to win position. You still got {7 - win} pieces left to win'
+        response.data = f'moved to win position. You still got {7 - win} pieces left to win'
+        return response
     elif is_moved:
         save_field(field)
         start_next_turn()
-        return 'moved. go to /game-state'
+        response.data = 'moved. go to /game-state'
+        return response
     else:
-        return 'not moved. Try to move another one or place a new one'
+        response.data = 'not moved. Try to move another one or place a new one'
+        return response
 
 
 @app.route('/start-game')
 def start_game():
     start_roll = roll()
-    null_state = GameState(roll=start_roll, turn=0, win_0=0, win_1=0)
+    null_state = GameState(roll=start_roll, turn=0, win_0=0, win_1=0, player_id_0=None, player_id_1=None)
     GameState.query.delete()
     db.session.add(null_state)
     PiecesTable.query.delete()
     db.session.commit()
-    if start_roll == 0:
-        start_next_turn()
     return 'game status annulled, go to /game-state'
 
 
@@ -233,28 +254,6 @@ def get_win_pieces_amount():
     state = GameState.query.all()[0]
     win_0, win_1 = state.win_0, state.win_1
     return {0: win_0, 1: win_1}
-
-
-@app.route('/left-pieces')
-def get_left_pieces():
-    field = restore_field()
-    player_0, player_1 = field.player_0, field.player_1
-    pieces_amount_0, pieces_amount_1 = player_0.active_pieces, player_1.active_pieces
-    state = GameState.query.all()[0]
-    left_0 = 7 - state.win_0 - pieces_amount_0
-    left_1 = 7 - state.win_1 - pieces_amount_1
-    return {0: left_0, 1: left_1}
-
-
-@app.route('/current-turn')
-def get_current_turn():
-    state = GameState.query.all()[0]
-    return str(state.turn)
-
-
-@app.route('/skip-turn')
-def skip_turn():
-    return 'sorry. With your roll you can do nothing during this turn.'
 
 
 if __name__ == "__main__":
