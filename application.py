@@ -101,22 +101,22 @@ def convert_pieces_list_to_dict(player):
 
 def check_player_valid(turn, req):
     state = GameState.query.first()
-    identifier = req.cookies.get('id')
-    if identifier:
-        current_player_id = (state.player_id_0, state.player_id_1)[turn]
-        if current_player_id == identifier:
-            return True
-        return False
-    else:
-        new_id = generate_password()
-        if turn == 0:
-            state.player_id_0 = new_id
-        else:
-            state.player_id_1 = new_id
-        db.session.commit()
-        response = make_response('Player identifier set in cookie.')
-        response.set_cookie('id', new_id)
-        return response
+    cookie_id = req.cookies.get('id')
+    db_ids = {0: state.player_id_0, 1: state.player_id_1}
+    if db_ids[turn] == cookie_id and cookie_id is not None:
+        return True
+    elif cookie_id not in db_ids.values() or not cookie_id:
+        if db_ids[turn] is None:
+            new_id = generate_password()
+            if turn == 0:
+                state.player_id_0 = new_id
+            else:
+                state.player_id_1 = new_id
+            db.session.commit()
+            response = make_response('Player identifier set in cookie.')
+            response.set_cookie('id', new_id)
+            return response
+    return False
 
 
 def generate_password(length=15):
