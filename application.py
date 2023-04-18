@@ -29,7 +29,7 @@ class GameState(db.Model):
 
 # restores field from database
 def restore_field():
-    state = GameState.query.all()[0]
+    state = GameState.query.first()
     current_roll, current_turn = state.roll, state.turn
     win_0, win_1 = state.win_0, state.win_1
     field = GamingField(roll=current_roll, turn=current_turn, win_0=win_0, win_1=win_1)
@@ -57,7 +57,7 @@ def start_next_turn():
     state = GameState.query.first()
     current_roll, current_turn = state.roll, state.turn
     next_turn = (current_turn + 1) % 2
-    next_roll = roll()
+    next_roll = None
     state.roll = next_roll
     state.turn = next_turn
     db.session.commit()
@@ -129,6 +129,9 @@ def roll():
     result = 0
     for _ in range(4):
         result += randrange(2)
+    state = GameState.query.first()
+    state.roll = result
+    db.session.commit()
     return result
 
 
@@ -150,12 +153,15 @@ def return_game_state_dict_v2():
 
 @app.route('/roll/v2', methods=['POST'])
 def get_roll_v2():
-    state = GameState.query.all()[0]
-    current_roll = state.roll
-    if current_roll == 0:
-        start_next_turn()
-        return {'roll': str(current_roll), 'problem': "roll is zero! You skip the turn"}
-    return {'roll': str(current_roll)}
+    old_roll = GameState.query.first().roll
+    if old_roll is None:
+        current_roll = roll()
+        if current_roll == 0:
+            start_next_turn()
+            return {'roll': str(current_roll), 'problem': "roll is zero! You skip the turn"}
+        return {'roll': str(current_roll)}
+    else:
+        return {'roll': str(old_roll), 'problem': "you've already rolled this turn"}
 
 
 @app.route('/roll', methods=['POST'])
@@ -171,6 +177,9 @@ def get_roll():
 @app.route('/place-new-piece', methods=['POST'])
 def place_new_piece():
     field = restore_field()
+    current_roll = GameState.query.first().roll
+    if current_roll is None:
+        return "roll first, then move"
     res = check_player_valid(field.turn, request)
     response = make_response()
     if isinstance(res, bool):
@@ -205,6 +214,9 @@ def place_new_piece():
 @app.route('/move-piece', methods=['PUT'])
 def move_piece():
     field = restore_field()
+    current_roll = GameState.query.first().roll
+    if current_roll is None:
+        return "roll first, then move"
     res = check_player_valid(field.turn, request)
     response = make_response()
     if isinstance(res, bool):
@@ -240,7 +252,7 @@ def move_piece():
 
 @app.route('/start-game')
 def start_game():
-    start_roll = roll()
+    start_roll = None
     null_state = GameState(roll=start_roll, turn=0, win_0=0, win_1=0, player_id_0=None, player_id_1=None)
     GameState.query.delete()
     db.session.add(null_state)
