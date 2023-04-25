@@ -257,7 +257,7 @@ def start_game():
     db.session.add(null_state)
     # PiecesTable.query.filter_by(game_id=game_id).delete()
     db.session.commit()
-    return f'new session created. session number is {new_game.id}'
+    return {'game_id': new_game.id}
 
 
 if __name__ == "__main__":
