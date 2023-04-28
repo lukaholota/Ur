@@ -1,3 +1,4 @@
+import json
 from random import randrange, choice
 from string import ascii_letters, digits, punctuation
 
@@ -13,6 +14,8 @@ class Games(db.Model):
                                    primaryjoin="Games.id==PiecesTable.game_id")
     states = db.relationship('GameState', backref='game', lazy=True,
                              primaryjoin="Games.id==GameState.game_id")
+    player_id_0 = db.Column(db.String)
+    player_id_1 = db.Column(db.String)
 
 
 class PiecesTable(db.Model):
@@ -34,6 +37,12 @@ class GameState(db.Model):
     player_id_0 = db.Column(db.String)
     player_id_1 = db.Column(db.String)
     game_id = db.Column(db.Integer, db.ForeignKey('games.id'), nullable=False)
+
+
+class Queue(db.Model):
+    __tablename__ = 'queue'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    searcher = db.Column(db.String)
 
 
 # restores field from database
@@ -144,6 +153,20 @@ def roll(game_id):
     return result
 
 
+def create_game(player_id_0=None, player_id_1=None):
+    # old_game = GameState.query.filter_by(game_id=)
+    new_game = Games(player_id_1=player_id_1, player_id_0=player_id_0)
+    db.session.add(new_game)
+    db.session.flush()
+    null_state = GameState(roll=None, turn=0, win_0=0, win_1=0,
+                           player_id_0=None, player_id_1=None, game_id=new_game.id)
+    # GameState.query.filter_by(game_id=.delete()
+    db.session.add(null_state)
+    # PiecesTable.query.filter_by(game_id=game_id).delete()
+    db.session.commit()
+    return {'game_id': new_game.id}
+
+
 @app.route('/game-state/<game_id>')
 def return_game_state_dict_v2(game_id):
     state = GameState.query.all()[0]
@@ -246,18 +269,36 @@ def move_piece(game_id):
 
 # to do: add deleting useless data
 @app.route('/start-game')
-def start_game():
-    # old_game = GameState.query.filter_by(game_id=)
-    new_game = Games()
-    db.session.add(new_game)
-    db.session.flush()
-    null_state = GameState(roll=None, turn=0, win_0=0, win_1=0,
-                           player_id_0=None, player_id_1=None, game_id=new_game.id)
-    # GameState.query.filter_by(game_id=.delete()
-    db.session.add(null_state)
-    # PiecesTable.query.filter_by(game_id=game_id).delete()
-    db.session.commit()
-    return {'game_id': new_game.id}
+def start_game_route():
+    return create_game()
+
+
+@app.route('/find-game', methods=['POST'])
+def find_game():
+    session_cookie = request.cookies.get('session_id')
+    response = make_response('searcher added to queue')
+    if not session_cookie:
+        session_cookie = generate_password()
+        response.set_cookie('session_id', session_cookie)
+    queues = Queue.query.all()
+    searchers_amount = len(queues)
+    if searchers_amount > 0:
+        zero_id = queues[0].searcher
+        game = create_game(player_id_0=zero_id, player_id_1=session_cookie)
+        response.data = json.dumps(game)
+        Queue.query.delete()
+        db.session.commit()
+        return response
+    else:
+        searcher = Queue(searcher=session_cookie)
+        db.session.add(searcher)
+        db.session.commit()
+        return response
+
+
+@app.route('/queue-status')
+def queue_status():
+    return len(Queue.query.all())
 
 
 if __name__ == "__main__":
