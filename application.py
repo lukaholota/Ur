@@ -168,7 +168,7 @@ def create_game(player_id_0=None, player_id_1=None):
 
 
 @app.route('/game-state/<game_id>')
-def return_game_state_dict_v2(game_id):
+def return_game_state_dict(game_id):
     state = GameState.query.all()[0]
     win_0, win_1 = state.win_0, state.win_1
     field = restore_field(game_id)
@@ -179,7 +179,7 @@ def return_game_state_dict_v2(game_id):
 
 
 @app.route('/roll/<game_id>', methods=['POST'])
-def get_roll_v2(game_id):
+def get_roll(game_id):
     old_roll = GameState.query.filter_by(game_id=game_id).first().roll
     if old_roll is None:
         current_roll = roll(game_id)
@@ -283,6 +283,9 @@ def find_game():
     queues = Queue.query.all()
     searchers_amount = len(queues)
     if searchers_amount > 0:
+        if any([searcher.searcher == session_cookie for searcher in queues]):
+            response.data = 'you already in queue'
+            return response
         zero_id = queues[0].searcher
         game = create_game(player_id_0=zero_id, player_id_1=session_cookie)
         response.data = json.dumps(game)
@@ -294,6 +297,24 @@ def find_game():
         db.session.add(searcher)
         db.session.commit()
         return response
+
+
+@app.route('/cancel-search', methods=['POST'])
+def cancel_search():
+    session_id = request.cookies['session_id']
+    Queue.query.filter_by(searcher=session_id).delete()
+    db.session.commit()
+    return 'success'
+
+
+@app.route('/belongs-to-game/<game_id>')
+def check_if_player_belongs_to_game(game_id):
+    game = Games.query.filter(id=game_id)
+    session_id = request.cookies['session_id']
+    players_in_game = (game.player_id_0, game.player_id_1)
+    if session_id in players_in_game:
+        return {'check_result': True}
+    return {'check_result': False}
 
 
 @app.route('/queue-status')
