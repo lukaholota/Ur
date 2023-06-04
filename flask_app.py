@@ -6,7 +6,7 @@ POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'QlWuEkRa')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST', '31.131.17.213')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
 POSTGRES_USER = os.environ.get('POSTGRES_USER', 'luka')
-POSTGRES_DB = os.environ.get('POSTGRES_DB', 'ur_db_prod')
+POSTGRES_DB = os.environ.get('POSTGRES_DB', 'ur_db_dev')
 
 
 app = Flask(__name__)
