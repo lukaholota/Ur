@@ -3,7 +3,7 @@ from random import randrange, choice
 from string import ascii_letters, digits, punctuation
 
 from flask import request, make_response
-from database import app, db
+from flask_app import app, db
 from Classes import *
 
 
