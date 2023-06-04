@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+    web:
+        container_name: docker-python-postgres
+        restart: always
+        build: .
+        command: gunicorn --bind 0.0.0.0:5000 application:app
+        ports:
+            - 5000:5000
+        volumes:
+            - ./:/usr/src/app/
+
