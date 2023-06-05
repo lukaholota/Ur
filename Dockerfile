@@ -13,9 +13,6 @@ ENV POSTGRES_DB='ur_db_prod'
 
 COPY requirements.txt ./
 
-RUN python -m venv /venv
-ENV PATH='/venv/bin:$PATH'
-
 RUN pip install -r requirements.txt
 
 COPY . .
