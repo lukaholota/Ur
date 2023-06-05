@@ -69,6 +69,7 @@ def save_field(field, game_id):
     state = GameState.query.filter_by(game_id=game_id).first()
     state.turn = field.turn
     db.session.commit()
+    rdb.delete(game_id)
 
 
 def start_next_turn(game_id):
@@ -169,8 +170,9 @@ def create_game(player_id_0=None, player_id_1=None):
 
 @app.route('/game-state/<game_id>')
 def return_game_state_dict(game_id):
-    if request in rdb:
-        return rdb[request]
+    if game_id in rdb:
+        result = json.loads(rdb.get(game_id))
+        return result
     else:
         state = GameState.query.filter_by(game_id=game_id).first()
         win_0, win_1 = state.win_0, state.win_1
@@ -179,7 +181,9 @@ def return_game_state_dict(game_id):
                 'finished_pieces_player_0': str(win_0),
                 'finished_pieces_player_1': str(win_1),
                 'field': get_converted_field(field)}
-        rdb[request] = result
+        key = str(game_id)
+        value = json.dumps(result)
+        rdb.set(key, value)
         return result
 
 
