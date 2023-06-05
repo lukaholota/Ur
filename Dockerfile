@@ -11,6 +11,9 @@ ENV POSTGRES_USER='luka'
 ENV POSTGRES_PASSWORD='QlWuEkRa'
 ENV POSTGRES_DB='ur_db_prod'
 
+ENV REDIS_BIND='31.131.17.213'
+ENV REDIS_PORT='6379'
+
 COPY requirements.txt ./
 
 RUN pip install -r requirements.txt

@@ -3,7 +3,7 @@ from random import randrange, choice
 from string import ascii_letters, digits, punctuation
 
 from flask import request, make_response
-from flask_app import app, db
+from flask_app import app, db, rdb
 from Classes import *
 
 
@@ -169,13 +169,18 @@ def create_game(player_id_0=None, player_id_1=None):
 
 @app.route('/game-state/<game_id>')
 def return_game_state_dict(game_id):
-    state = GameState.query.all()[0]
-    win_0, win_1 = state.win_0, state.win_1
-    field = restore_field(game_id)
-    return {'current_turn': str(field.turn),
-            'finished_pieces_player_0': str(win_0),
-            'finished_pieces_player_1': str(win_1),
-            'field': get_converted_field(field)}
+    if request in rdb:
+        return rdb[request]
+    else:
+        state = GameState.query.filter_by(game_id=game_id).first()
+        win_0, win_1 = state.win_0, state.win_1
+        field = restore_field(game_id)
+        result = {'current_turn': str(field.turn),
+                'finished_pieces_player_0': str(win_0),
+                'finished_pieces_player_1': str(win_1),
+                'field': get_converted_field(field)}
+        rdb[request] = result
+        return result
 
 
 @app.route('/roll/<game_id>', methods=['POST'])
