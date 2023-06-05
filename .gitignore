@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 
 # my
+.env
 /.idea
 tests.py
 wsgi.py

@@ -3,10 +3,10 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import redis
 
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'QlWuEkRa')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', os.environ.get('db_prod_pass'))
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST', '31.131.17.213')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
-POSTGRES_USER = os.environ.get('POSTGRES_USER', 'luka')
+POSTGRES_USER = os.environ.get('POSTGRES_USER', os.environ.get('db_prod_user'))
 POSTGRES_DB = os.environ.get('POSTGRES_DB', 'ur_db_dev')
 
 REDIS_BIND = os.environ.get('REDIS_BIND')

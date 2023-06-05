@@ -1,7 +1,6 @@
 import json
-from random import randrange, choice
-from string import ascii_letters, digits, punctuation
-
+import os
+from secrets import randbelow, token_urlsafe
 from flask import request, make_response
 from flask_app import app, db, rdb
 from Classes import *
@@ -138,16 +137,14 @@ def check_player_valid(turn, req, game_id):
     return False
 
 
-def generate_password(length=15):
-    chars = ascii_letters + digits + punctuation
-    password = ''.join(choice(chars) for _ in range(length))
-    return password
+def generate_password():
+    return token_urlsafe()
 
 
 def roll(game_id):
     result = 0
     for _ in range(4):
-        result += randrange(2)
+        result += randbelow(2)
     state = GameState.query.filter_by(game_id=game_id).first()
     state.roll = result
     db.session.commit()
@@ -155,15 +152,12 @@ def roll(game_id):
 
 
 def create_game(player_id_0=None, player_id_1=None):
-    # old_game = GameState.query.filter_by(game_id=)
     new_game = Games(player_id_1=player_id_1, player_id_0=player_id_0)
     db.session.add(new_game)
     db.session.flush()
     null_state = GameState(roll=None, turn=0, win_0=0, win_1=0,
                            player_id_0=None, player_id_1=None, game_id=new_game.id)
-    # GameState.query.filter_by(game_id=.delete()
     db.session.add(null_state)
-    # PiecesTable.query.filter_by(game_id=game_id).delete()
     db.session.commit()
     return {'game_id': new_game.id}
 
@@ -178,9 +172,9 @@ def return_game_state_dict(game_id):
         win_0, win_1 = state.win_0, state.win_1
         field = restore_field(game_id)
         result = {'current_turn': str(field.turn),
-                'finished_pieces_player_0': str(win_0),
-                'finished_pieces_player_1': str(win_1),
-                'field': get_converted_field(field)}
+                  'finished_pieces_player_0': str(win_0),
+                  'finished_pieces_player_1': str(win_1),
+                  'field': get_converted_field(field)}
         key = str(game_id)
         value = json.dumps(result)
         rdb.set(key, value)
@@ -194,10 +188,10 @@ def get_roll(game_id):
         current_roll = roll(game_id)
         if current_roll == 0:
             start_next_turn(game_id)
-            return {'roll': str(current_roll), 'problem': "roll is zero! You skip the turn"}
+            return {'roll': str(current_roll), 'error': "zero-roll"}
         return {'roll': str(current_roll)}
     else:
-        return {'roll': str(old_roll), 'problem': "you've already rolled this turn"}
+        return {'roll': str(old_roll), 'error': "second-roll-in-one-turn"}
 
 
 @app.route('/place-new-piece/<game_id>', methods=['POST'])
@@ -205,12 +199,12 @@ def place_new_piece(game_id):
     field = restore_field(game_id)
     current_roll = GameState.query.filter_by(game_id=game_id).first().roll
     if current_roll is None:
-        return "roll first, then move"
+        return {"error": "not-rolled"}
     res = check_player_valid(field.turn, request, game_id)
     response = make_response()
     if isinstance(res, bool):
         if not res:
-            return "dont cheat"
+            return {"error": "wrong-player"}
     else:
         response = res
     player = field.current_player
@@ -218,7 +212,7 @@ def place_new_piece(game_id):
     player_id = field.turn
     is_placed = player.place_new_piece(pos)
     if is_placed == 'too':
-        response.data = "You can't place anymore"
+        response.data = {"error": "excessive-piece}"}
         return response
     elif is_placed:
         added_piece = player.active_pieces[-1]
@@ -231,8 +225,7 @@ def place_new_piece(game_id):
         response.data = 'placed, go to /game-state'
         return response
     else:
-        response.data = "not placed. The field you tried to put " \
-                        "the piece onto is occupied. You can't place during this turn"
+        response.data = {"error": "tile-occupied"}
         return response
 
 
@@ -247,13 +240,13 @@ def move_piece(game_id):
     response = make_response()
     if isinstance(res, bool):
         if not res:
-            return "dont cheat"
+            return {"error": "wrong-player"}
     else:
         response = res
     player = field.players[field.turn]
     player_id = request.json['player']
     if int(player_id) != field.turn:
-        return 'wrong player'
+        return {"error": 'wrong player'}
     piece_id = request.json['piece_id']
     piece = convert_pieces_list_to_dict(player)[piece_id]
     turn = field.turn
@@ -269,10 +262,10 @@ def move_piece(game_id):
     elif is_moved:
         save_field(field, game_id)
         start_next_turn(game_id)
-        response.data = 'moved. go to /game-state'
+        response.data = 'moved'
         return response
     else:
-        response.data = 'not moved. Try to move another one or place a new one'
+        response.data = {"error": "not-moved"}
         return response
 
 
@@ -293,7 +286,7 @@ def find_game():
     searchers_amount = len(queues)
     if searchers_amount > 0:
         if any([searcher.searcher == session_cookie for searcher in queues]):
-            response.data = 'you already in queue'
+            response.data = {"error": 'player-already-in-queue'}
             return response
         zero_id = queues[0].searcher
         game = create_game(player_id_0=zero_id, player_id_1=session_cookie)
@@ -329,6 +322,14 @@ def check_if_player_belongs_to_game(game_id):
 @app.route('/queue-status')
 def queue_status():
     return len(Queue.query.all())
+
+@app.route('/get-push-public-key')
+def get_push_public_key():
+    return os.environ.get('PUSH_PUBLIC')
+
+@app.route('/subscribe-to-notifications')
+def subscribe_to_notifications():
+    
 
 
 if __name__ == "__main__":
