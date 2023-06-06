@@ -1,16 +1,18 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-import os
+from dotenv import dotenv_values
 import redis
 
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', os.environ.get('db_prod_pass'))
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST', '31.131.17.213')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
-POSTGRES_USER = os.environ.get('POSTGRES_USER', os.environ.get('db_prod_user'))
-POSTGRES_DB = os.environ.get('POSTGRES_DB', 'ur_db_dev')
+env_vars = dotenv_values('vars.env')
 
-REDIS_BIND = os.environ.get('REDIS_BIND')
-REDIS_PORT = os.environ.get('REDIS_PORT')
+POSTGRES_PASSWORD = env_vars['POSTGRES_PASSWORD']
+POSTGRES_HOST = env_vars['POSTGRES_HOST']
+POSTGRES_PORT = env_vars['POSTGRES_PORT']
+POSTGRES_USER = env_vars['POSTGRES_USER']
+POSTGRES_DB = env_vars['POSTGRES_DB']
+
+REDIS_BIND = env_vars['REDIS_BIND']
+REDIS_PORT = env_vars['REDIS_PORT']
 
 app = Flask(__name__)
 
@@ -18,4 +20,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{POSTGRES_USER}:{POSTGRES
 app.config['REDIS_URL'] = f'redis://{REDIS_BIND}:{REDIS_PORT}'
 
 db = SQLAlchemy(app)
-rdb = redis.Redis.from_url(app.config['REDIS_URL'])
+rdb = redis.Redis.from_url(f'redis://{REDIS_BIND}:{REDIS_PORT}')
+
+# app.config['REDIS_URL']

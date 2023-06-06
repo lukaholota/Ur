@@ -1,8 +1,7 @@
 import json
-import os
 from secrets import randbelow, token_urlsafe
 from flask import request, make_response
-from flask_app import app, db, rdb
+from flask_app import app, db, rdb, env_vars
 from Classes import *
 
 
@@ -323,13 +322,15 @@ def check_if_player_belongs_to_game(game_id):
 def queue_status():
     return len(Queue.query.all())
 
+
 @app.route('/get-push-public-key')
 def get_push_public_key():
-    return os.environ.get('PUSH_PUBLIC')
+    return env_vars['PUSH_PUBLIC']
+
 
 @app.route('/subscribe-to-notifications')
 def subscribe_to_notifications():
-    
+    pass
 
 
 if __name__ == "__main__":

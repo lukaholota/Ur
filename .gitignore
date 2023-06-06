@@ -165,3 +165,8 @@ cython_debug/
 tests.py
 wsgi.py
 database.py
+
+# Alembic
+/alembic.ini
+/alembic/versions/
+alembic
