@@ -11,5 +11,5 @@ services:
         volumes:
             - ./:/usr/src/app/
         env_file:
-            - vars.env
+            - .env
 
