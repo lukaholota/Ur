@@ -168,6 +168,7 @@ vars.env
 
 
 # Alembic
+alembic
 /alembic.ini
 /alembic/versions/
-alembic
+
