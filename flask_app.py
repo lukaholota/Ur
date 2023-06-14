@@ -7,7 +7,7 @@ env_vars = dotenv_values()
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = env_vars['DB_URI_PROD']
+app.config['SQLALCHEMY_DATABASE_URI'] = env_vars['DB_URI']
 app.config['REDIS_URL'] = env_vars['RDB_URI']
 
 db = SQLAlchemy(app)
