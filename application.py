@@ -14,6 +14,8 @@ class Games(db.Model):
                              primaryjoin="Games.id==GameState.game_id")
     player_id_0 = db.Column(db.String)
     player_id_1 = db.Column(db.String)
+    push_info_0 = db.Column(db.String)
+    push_info_1 = db.Column(db.String)
 
 
 class PiecesTable(db.Model):
@@ -41,11 +43,6 @@ class Queue(db.Model):
     __tablename__ = 'queue'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     searcher = db.Column(db.String)
-
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    notification = db.Column(db.String)
 
 
 # restores field from database
@@ -155,8 +152,8 @@ def roll(game_id):
     return result
 
 
-def create_game(player_id_0=None, player_id_1=None):
-    new_game = Games(player_id_1=player_id_1, player_id_0=player_id_0)
+def create_game(player_id_0=None, player_id_1=None, push_info_0=None, push_info_1=None):
+    new_game = Games(player_id_1=player_id_1, player_id_0=player_id_0, push_info_0=push_info_0, push_info_1=push_info_1)
     db.session.add(new_game)
     db.session.flush()
     null_state = GameState(roll=None, turn=0, win_0=0, win_1=0,
@@ -164,6 +161,18 @@ def create_game(player_id_0=None, player_id_1=None):
     db.session.add(null_state)
     db.session.commit()
     return {'game_id': new_game.id}
+
+
+def subscribe_to_notifications(info, req):
+    info = json.dumps(info)
+    session_id = req.cookies.get('session_id')
+    game = Games.query.filter(Games.player_id_0 == session_id or Games.player_id_1 == session_id)
+    if session_id == game.player_id_0:
+        game.push_info_0 = info
+    else:
+        game.push_info_1 = info
+    db.session.commit()
+    return 'success'
 
 
 @app.route('/game-state/<game_id>')
@@ -299,23 +308,26 @@ def start_game_route():
 def find_game():
     session_cookie = request.cookies.get('session_id')
     response = make_response('searcher added to queue')
-    if not session_cookie:
+    db_session_id = Queue.query.filter_by(searcher=session_cookie)
+    if not session_cookie or not db_session_id:
         session_cookie = generate_password()
         response.set_cookie('session_id', session_cookie)
+    if db_session_id:
+        response.data = json.dumps({"error": 'player-already-in-queue'})
+        return response
     queues = Queue.query.all()
     searchers_amount = len(queues)
     if searchers_amount > 0:
-        if any([searcher.searcher == session_cookie for searcher in queues]):
-            response.data = json.dumps({"error": 'player-already-in-queue'})
-            return response
-        zero_id = queues[0].searcher
-        game = create_game(player_id_0=zero_id, player_id_1=session_cookie)
-        response.data = json.dumps(game)
+        game = Games.query.filter(Games.player_id_0 is not None and Games.player_id_1 is None).first()
+        game.player_id_1 = session_cookie
+        response.data = json.dumps(game.id)
         Queue.query.delete()
         db.session.commit()
         return response
     else:
         searcher = Queue(searcher=session_cookie)
+        game = create_game(player_id_0=session_cookie)
+        db.session.add(game)
         db.session.add(searcher)
         db.session.commit()
         return response
@@ -349,9 +361,10 @@ def get_push_public_key():
     return env_vars['PUSH_PUBLIC']
 
 
-@app.route('/subscribe-to-notifications')
-def subscribe_to_notifications():
-    pass
+@app.route('/subscribe-to-notifications', methods=['POST'])
+def subscribe_to_notifications_route():
+    info = request.json
+    return subscribe_to_notifications(info, request)
 
 
 @app.route('/clear-redis', methods=['PUT'])
